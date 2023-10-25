@@ -29,7 +29,7 @@ public class Node {
         if (prev == null) return n;
         ArrayNode array = object.withArray("connections");
         int i = 0;
-        n.connections = new WeightedInputs[prev.getNodes().length];
+        n.connections = new WeightedInputs[array.size()];
         for (JsonNode element : array) {
             n.connections[i] = WeightedInputs.from((ObjectNode) element, prev.getNodes()[i]);
             i++;

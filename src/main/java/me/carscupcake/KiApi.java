@@ -43,7 +43,7 @@ public class KiApi {
         Layer last = null;
         for (int i = 0; i < data.length; i++) {
             Layer l = (i == 0) ? inputs : ((i == data.length - 1) ? outputs : hiddenLayers[i - 1]);
-            data[i] = new LayerLearnData(new double[lastNodeSize(last)], new double[(last == null) ? inputs.getNodes().length : last.getNodes().length * l.getNodes().length],
+            data[i] = new LayerLearnData(new double[lastNodeSize(last)], new double[l.getNodes().length],
                     new double[l.getNodes().length], new double[l.getNodes().length], l);
             last = l;
         }
@@ -84,7 +84,6 @@ public class KiApi {
         this.cost = cost;
         Assert.notNull(function, "Cost is null!");
         this.function = function;
-        generateConnections();
         LayerLearnData[] data = new LayerLearnData[hiddenLayers.length + 2];
         last = null;
         for (i = 0; i < data.length; i++) {
@@ -105,9 +104,9 @@ public class KiApi {
         int i = 0;
         for (Layer l : hiddenLayers) {
             i++;
-            values = l.calcOutput(values, (i < hiddenLayers.length) ? hiddenLayers[i].getNodes().length : outputs.getNodes().length, function);
+            values = l.calcOutput(values, function);
         }
-        return outputs.calcOutput(values, (i < hiddenLayers.length) ? hiddenLayers.length : outputs.getNodes().length, function);
+        return outputs.calcOutput(values, function);
     }
 
     private double[] learn(double[] input) {
@@ -115,10 +114,10 @@ public class KiApi {
         int i = 0;
         for (Layer l : hiddenLayers) {
             i++;
-            values = l.calcOutput(values, (i == 1) ? inputs.getNodes().length : hiddenLayers[i - 1].getNodes().length, function, networkData.layerData()[i]);
+            values = l.calcOutput(values, function, networkData.layerData()[i]);
         }
         i++;
-        return outputs.calcOutput(values, (i < hiddenLayers.length) ? hiddenLayers.length : outputs.getNodes().length, function, networkData.layerData()[i]);
+        return outputs.calcOutput(values, function, networkData.layerData()[i]);
     }
 
     public void train(TrainingData[] data, double learnRate) {
@@ -128,9 +127,13 @@ public class KiApi {
         for (TrainingData d : data) {
             started++;
             Thread.ofVirtual().factory().newThread(() -> {
-                double[] out = learn(d.input());
-                d.evaluateCost(out, KiApi.this.cost, networkData.output(), function);
-                networkData.update();
+                try {
+                    double[] out = learn(d.input());
+                    d.evaluateCost(out, KiApi.this.cost, networkData.output(), function);
+                    networkData.update();
+                } catch (Exception e) {
+                    e.printStackTrace(System.err);
+                }
                 synchronized (finished) {
                     finished.getAndIncrement();
                 }

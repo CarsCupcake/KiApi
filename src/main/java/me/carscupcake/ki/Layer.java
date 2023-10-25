@@ -22,16 +22,19 @@ public class Layer {
             n[i] = new Node();
         return new Layer(n);
     }
-    public double[] calcOutput(double[] input, int nextLayerSize, IActivationFunction function) {
-        double[] f = new double[nextLayerSize];
+    public double[] calcOutput(double[] input, IActivationFunction function) {
+        double[] f = new double[nodes.length];
         int i = 0;
         int j = 0;
         for (Node n : nodes) {
+            double weightInput = n.getBias();
             for (WeightedInputs in : n.getConnections()) {
-                f[i] = input[j] * in.getWeight() + n.getBias();
+                weightInput += input[i] * in.getWeight();
                 i++;
             }
+            f[j] = weightInput;
             j++;
+            i = 0;
         }
         //Activation code by SebastianLeague
         double[] activation = new double[nodes.length];
@@ -39,18 +42,21 @@ public class Layer {
             activation[i] = function.activate(f, i);
         return activation;
     }
-    public double[] calcOutput(double[] input, int previousLayerSize, IActivationFunction function, LayerLearnData data) {
+    public double[] calcOutput(double[] input, IActivationFunction function, LayerLearnData data) {
         System.arraycopy(input, 0, data.inputs(), 0, input.length);
-        double[] f = new double[nodes.length * previousLayerSize];
+        double[] f = new double[nodes.length];
         int i = 0;
         int j = 0;
         for (Node n : nodes) {
+            double weightInput = n.getBias();
             for (WeightedInputs in : n.getConnections()) {
-                f[i] = input[j] * in.getWeight() + n.getBias();
-                data.weightedInputs()[i] = f[i];
+                weightInput += input[i] * in.getWeight();
                 i++;
             }
+            data.weightedInputs()[j] = weightInput;
+            f[j] = weightInput;
             j++;
+            i = 0;
         }
         //Activation code by SebastianLeague
         double[] activation = new double[nodes.length];
@@ -83,7 +89,7 @@ public class Layer {
         json.add(array);
     }
     public void learn(double learnRate, double regularization, double momentum) {
-        double weightDecay = (1 - regularization * momentum);
+        weightDecay = (1 - regularization * momentum);
         for (Node node : nodes) {
             for (WeightedInputs input : node.getConnections()) {
                 double weight = input.getWeight();
