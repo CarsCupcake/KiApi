@@ -8,6 +8,8 @@ import me.carscupcake.IActivationFunction;
 import me.carscupcake.KiApi;
 import me.carscupcake.learn.LayerLearnData;
 
+import java.util.Arrays;
+
 @Getter
 public class Layer {
     private final Node[] nodes;
@@ -88,7 +90,7 @@ public class Layer {
             array.add(n.toJson());
         json.add(array);
     }
-    public void learn(double learnRate, double regularization, double momentum) {
+    public void applyGradiants(double learnRate, double regularization, double momentum) {
         weightDecay = (1 - regularization * momentum);
         for (Node node : nodes) {
             for (WeightedInputs input : node.getConnections()) {
@@ -111,5 +113,13 @@ public class Layer {
             i++;
         }
         return new Layer(nodes);
+    }
+
+    @Override
+    public String toString() {
+        return "Layer{" +
+                "nodes=" + Arrays.toString(nodes) +
+                ", weightDecay=" + weightDecay +
+                '}';
     }
 }

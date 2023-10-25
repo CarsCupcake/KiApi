@@ -14,6 +14,7 @@ import me.carscupcake.learn.NetworkLearnData;
 import me.carscupcake.util.Assert;
 
 import java.io.*;
+import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -25,7 +26,6 @@ public class KiApi {
     private final Layer[] hiddenLayers;
     private final IActivationFunction function;
     private final ICost cost;
-    private final NetworkLearnData networkData;
     private final double momentum;
     private final double regularization;
 
@@ -39,16 +39,8 @@ public class KiApi {
         this.regularization = builder.getRegularization();
         Assert.notNull(cost, "Cost is null!");
         generateConnections();
-        LayerLearnData[] data = new LayerLearnData[hiddenLayers.length + 2];
-        Layer last = null;
-        for (int i = 0; i < data.length; i++) {
-            Layer l = (i == 0) ? inputs : ((i == data.length - 1) ? outputs : hiddenLayers[i - 1]);
-            data[i] = new LayerLearnData(new double[lastNodeSize(last)], new double[l.getNodes().length],
-                    new double[l.getNodes().length], new double[l.getNodes().length], l);
-            last = l;
-        }
-        networkData = new NetworkLearnData(data);
     }
+
     public KiApi(File f, ICost cost, IActivationFunction function) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(f));
 
@@ -84,19 +76,21 @@ public class KiApi {
         this.cost = cost;
         Assert.notNull(function, "Cost is null!");
         this.function = function;
+    }
+
+    public NetworkLearnData makeLearnData() {
         LayerLearnData[] data = new LayerLearnData[hiddenLayers.length + 2];
-        last = null;
-        for (i = 0; i < data.length; i++) {
+        Layer last = null;
+        for (int i = 0; i < data.length; i++) {
             Layer l = (i == 0) ? inputs : ((i == data.length - 1) ? outputs : hiddenLayers[i - 1]);
-            data[i] = new LayerLearnData(new double[lastNodeSize(last)], new double[(last == null) ? inputs.getNodes().length : last.getNodes().length * l.getNodes().length],
-                    new double[l.getNodes().length], new double[l.getNodes().length], l);
+            data[i] = new LayerLearnData(new double[lastNodeSize(last)], new double[(last == null) ? inputs.getNodes().length : last.getNodes().length * l.getNodes().length], new double[l.getNodes().length], new double[l.getNodes().length], l);
             last = l;
         }
-        networkData = new NetworkLearnData(data);
+        return new NetworkLearnData(data);
     }
 
     private int lastNodeSize(Layer last) {
-        return (last == null) ? 0 : last.getNodes().length;
+        return (last == null) ? inputs.getNodes().length : last.getNodes().length;
     }
 
     public double[] ask(double[] input) {
@@ -109,9 +103,10 @@ public class KiApi {
         return outputs.calcOutput(values, function);
     }
 
-    private double[] learn(double[] input) {
+    private double[] learn(double[] input, NetworkLearnData networkData) {
         double[] values = input;
         int i = 0;
+        System.arraycopy(input, 0, networkData.layerData()[0].inputs(), 0, input.length);
         for (Layer l : hiddenLayers) {
             i++;
             values = l.calcOutput(values, function, networkData.layerData()[i]);
@@ -121,34 +116,27 @@ public class KiApi {
     }
 
     public void train(TrainingData[] data, double learnRate) {
+        Vector<NetworkLearnData> learnData = new Vector<>();
         AtomicReference<Double> costMini = new AtomicReference<>(Double.MAX_VALUE);
-        int started = 0;
         AtomicInteger finished = new AtomicInteger();
+        int i = 0;
         for (TrainingData d : data) {
-            started++;
-            Thread.ofVirtual().factory().newThread(() -> {
-                try {
-                    double[] out = learn(d.input());
-                    d.evaluateCost(out, KiApi.this.cost, networkData.output(), function);
-                    networkData.update();
-                } catch (Exception e) {
-                    e.printStackTrace(System.err);
-                }
-                synchronized (finished) {
-                    finished.getAndIncrement();
-                }
-            }).start();
-        }
-        while (true) {
-            synchronized (finished) {
-                if (finished.get() == started) break;
+            NetworkLearnData networkData = makeLearnData();
+            try {
+                double[] out = learn(d.input(), networkData);
+                d.evaluateCost(out, KiApi.this.cost, networkData, function);
+                networkData.update();
+                learnData.add(networkData);
+            } catch (Exception e) {
+                e.printStackTrace(System.err);
             }
         }
-        for (LayerLearnData d : networkData.layerData()) d.layer().learn(learnRate, regularization, momentum);
+        for (LayerLearnData d : makeLearnData().layerData())
+            d.layer().applyGradiants(learnRate / learnData.size(), regularization, momentum);
     }
 
     public void save(File file) {
-         ArrayNode array = factory.arrayNode();
+        ArrayNode array = factory.arrayNode();
         inputs.addToJson(array);
         for (Layer l : hiddenLayers)
             l.addToJson(array);
@@ -158,8 +146,7 @@ public class KiApi {
         object.put("momentum", momentum);
         object.put("regularization", regularization);
         try {
-            ObjectWriter objectWriter = new ObjectMapper().writer(new DefaultPrettyPrinter()
-                    .withObjectIndenter(new DefaultIndenter().withLinefeed("\n")));
+            ObjectWriter objectWriter = new ObjectMapper().writer(new DefaultPrettyPrinter().withObjectIndenter(new DefaultIndenter().withLinefeed("\n")));
             objectWriter.writeValue(file, object);
         } catch (Exception e) {
             e.printStackTrace(System.err);
@@ -170,16 +157,20 @@ public class KiApi {
         int i = 0;
         for (Layer l : hiddenLayers) {
             Layer prev = (i == 0) ? inputs : hiddenLayers[i - 1];
-            for (Node n : l.getNodes()) {
-                int ii = 0;
-                WeightedInputs[] in = new WeightedInputs[prev.getNodes().length];
-                for (Node previous : prev.getNodes()) {
-                    in[ii] = new WeightedInputs(n);
-                    ii++;
-                }
-                n.setConnections(in);
-            }
+            makeNodes(prev, l);
             i++;
+        }
+        makeNodes((hiddenLayers.length != 0) ? hiddenLayers[hiddenLayers.length - 1] : inputs, outputs);
+    }
+    private void makeNodes(Layer prev, Layer l) {
+        for (Node n : l.getNodes()) {
+            int ii = 0;
+            WeightedInputs[] in = new WeightedInputs[prev.getNodes().length];
+            for (Node previous : prev.getNodes()) {
+                in[ii] = new WeightedInputs(n);
+                ii++;
+            }
+            n.setConnections(in);
         }
     }
 }

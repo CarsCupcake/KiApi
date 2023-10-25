@@ -14,9 +14,26 @@ public class Main {
     public static void main(String[] args) throws IOException {
         File folder = new File("D:\\Java\\Code\\Netowrk\\trainingData");
         File data = new File(folder, "data.json");
+        new Thread(() -> {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+            while (true) {
+                try {
+                    String line = reader.readLine();
+                    if (line.equals("exit")) {
+                        synchronized (kiApi){
+                            kiApi.save(data);
+                            System.exit(0);
+                        }
+                    }
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
         if (!data.exists() || new BufferedReader(new FileReader(data)).lines().findAny().isEmpty()) {
             data.createNewFile();
-            kiApi = new KiBuilder().setCost(CostFunctions.MeanSquareError).addInputs(784).addLayer(20).addLayer(10).addOutput(10).build();
+            kiApi = new KiBuilder().setCost(CostFunctions.MeanSquareError).addInputs(784).addLayer(200).addLayer(100).addOutput(10)
+                    .setRegularization(1).setMomentum(0.5).setActivationFunction(ActivationFunctions.Sigmoid).build();
         } else kiApi = new KiApi(data, CostFunctions.MeanSquareError, ActivationFunctions.Sigmoid);
 
         if (!folder.isDirectory())
@@ -54,19 +71,22 @@ public class Main {
         trainingData.addAll(Set.of(sixTrainingData));
         trainingData.addAll(Set.of(eightTrainingData));
         trainingData.addAll(Set.of(nineTrainingData));
-        train(trainingData);
-        System.out.println(test(trainingData) * 100);
+        while (true) {
+            train(trainingData);
+            System.out.println(test(trainingData) * 100);
+        }
+        /*System.out.println(test(trainingData) * 100);
         BufferedImage in = ImageIO.read(new File("D:\\Java\\Code\\Netowrk\\trainingData", "test.png"));
         double[] res = kiApi.ask(getColorIntensity(in));
         System.out.println(Expectation.getExpectation(res));
         System.out.println(Arrays.toString(res));
         kiApi.save(data);
+        System.exit(0);*/
     }
-    private static final int TRAINING_CYCLES = 100000;
+    private static final int TRAINING_CYCLES = 5;
     private static void train(Set<TrainingData> trainingData) {
         for (int i = 0; i < TRAINING_CYCLES; i++) {
-            kiApi.train(trainingData.toArray(new TrainingData[0]), 1);
-            System.out.println(((double) i/TRAINING_CYCLES) + "%");
+            kiApi.train(trainingData.toArray(new TrainingData[0]), 0.05);
         }
     }
     private static double test(Set<TrainingData> trainingData) {
