@@ -14,6 +14,7 @@ import me.carscupcake.learn.NetworkLearnData;
 import me.carscupcake.util.Assert;
 
 import java.io.*;
+import java.util.Arrays;
 import java.util.Vector;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -117,8 +118,6 @@ public class KiApi {
 
     public void train(TrainingData[] data, double learnRate) {
         Vector<NetworkLearnData> learnData = new Vector<>();
-        AtomicReference<Double> costMini = new AtomicReference<>(Double.MAX_VALUE);
-        AtomicInteger finished = new AtomicInteger();
         int i = 0;
         for (TrainingData d : data) {
             NetworkLearnData networkData = makeLearnData();

@@ -9,6 +9,8 @@ import me.carscupcake.KiApi;
 import me.carscupcake.learn.LayerLearnData;
 
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 @Getter
 public class Layer {
@@ -44,6 +46,7 @@ public class Layer {
             activation[i] = function.activate(f, i);
         return activation;
     }
+    private static final Set<Double> data = new HashSet<>();
     public double[] calcOutput(double[] input, IActivationFunction function, LayerLearnData data) {
         System.arraycopy(input, 0, data.inputs(), 0, input.length);
         double[] f = new double[nodes.length];

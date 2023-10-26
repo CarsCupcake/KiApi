@@ -11,6 +11,11 @@ public record LayerLearnData(double[] inputs, double[] weightedInputs, double[] 
 
     @Override
     public String toString() {
-        return "[" + layer.toString() + ", " + Arrays.toString(nodeValues) + "]";
+        return "LayerLearnData{" +
+                "inputs=" + Arrays.toString(inputs) +
+                ", weightedInputs=" + Arrays.toString(weightedInputs) +
+                ", activations=" + Arrays.toString(activations) +
+                ", nodeValues=" + Arrays.toString(nodeValues) +
+                '}';
     }
 }
