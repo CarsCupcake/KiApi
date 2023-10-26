@@ -28,48 +28,59 @@ public class Layer {
     }
     public double[] calcOutput(double[] input, IActivationFunction function) {
         double[] f = new double[nodes.length];
-        int i = 0;
         int j = 0;
         for (Node n : nodes) {
+            int i = 0;
             double weightInput = n.getBias();
             for (WeightedInputs in : n.getConnections()) {
                 weightInput += input[i] * in.getWeight();
                 i++;
             }
+            if (Double.isNaN(weightInput)) {
+                System.out.println("Weight Input is NaN! (40)");
+                weightInput = 0;
+            }
             f[j] = weightInput;
             j++;
-            i = 0;
         }
         //Activation code by SebastianLeague
         double[] activation = new double[nodes.length];
-        for (i = 0; i < nodes.length ; i++)
+        for (int i = 0; i < nodes.length ; i++) {
             activation[i] = function.activate(f, i);
+            if (Double.isNaN(activation[i])) {
+                System.out.println("Activation is NaN! (51)");
+                activation[i] = 0;
+            }
+        }
         return activation;
     }
     private static final Set<Double> data = new HashSet<>();
     public double[] calcOutput(double[] input, IActivationFunction function, LayerLearnData data) {
         System.arraycopy(input, 0, data.inputs(), 0, input.length);
-        double[] f = new double[nodes.length];
-        int i = 0;
         int j = 0;
         for (Node n : nodes) {
+            int i = 0;
             double weightInput = n.getBias();
             for (WeightedInputs in : n.getConnections()) {
                 weightInput += input[i] * in.getWeight();
                 i++;
             }
+            if (Double.isNaN(weightInput)) {
+                System.out.println("Weight Input is NaN!");
+                weightInput = 0;
+            }
             data.weightedInputs()[j] = weightInput;
-            f[j] = weightInput;
             j++;
-            i = 0;
         }
         //Activation code by SebastianLeague
-        double[] activation = new double[nodes.length];
-        for (i = 0; i < nodes.length ; i++) {
-            activation[i] = function.activate(f, i);
-            data.activations()[i] = activation[i];
+        for (int i = 0; i < data.activations().length ; i++) {
+            data.activations()[i] = function.activate(data.weightedInputs(), i);
+            if (Double.isNaN(data.activations()[i])) {
+                System.out.println("Activation is NaN!");
+                data.activations()[i] = 0;
+            }
         }
-        return activation;
+        return data.activations();
     }
     public void updateGradiants(LayerLearnData data) {
         int i = 0;
@@ -78,11 +89,19 @@ public class Layer {
             double nodeData = data.nodeValues()[i];
             for (WeightedInputs inputs : node.getConnections()) {
                 double derCostWeight = data.inputs()[j] * nodeData;
+                if (Double.isNaN(derCostWeight)) {
+                    System.out.println("derCostWeight is NaN!");
+                    derCostWeight = 0;
+                }
                 inputs.setCostGradiant(inputs.getCostGradiant() + derCostWeight);
                 j++;
             }
             j = 0;
             double derCostBias = data.nodeValues()[i];
+            if (Double.isNaN(derCostBias)) {
+                System.out.println("derCostBias is NaN!");
+                derCostBias = 0;
+            }
             node.setCostGradiant(node.getCostGradiant() + derCostBias);
             i++;
         }
@@ -104,6 +123,9 @@ public class Layer {
             }
             double velocity = node.getVelocity() * momentum - node.getCostGradiant() * learnRate;
             node.setVelocity(velocity);
+            if (Double.isNaN(velocity)) {
+                velocity = 0;
+            }
             node.setBias(node.getBias() + velocity);
             node.setCostGradiant(0);
         }

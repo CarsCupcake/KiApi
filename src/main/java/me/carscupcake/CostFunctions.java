@@ -32,6 +32,7 @@ public enum CostFunctions implements ICost {
         public double derivative(double prediction, double expection) {
             if (prediction == 0 || expection == 0)
                 return 0;
+            if (prediction == 1) return 0;
             return (-prediction + expection) / (prediction * (prediction - 1));
         }
     }

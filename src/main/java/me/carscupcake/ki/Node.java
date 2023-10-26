@@ -26,6 +26,7 @@ public class Node {
     public static Node from(ObjectNode object, Layer prev) {
         Node n = new Node();
         n.bias = object.get("bias").asDouble();
+        if (Double.isNaN(n.bias)) n.bias = 0;
         if (prev == null) return n;
         ArrayNode array = object.withArray("connections");
         int i = 0;
@@ -35,5 +36,10 @@ public class Node {
             i++;
         }
         return n;
+    }
+
+    public void setBias(double bias) {
+        this.bias = bias;
+        if (Double.isNaN(bias)) this.bias = 0;
     }
 }

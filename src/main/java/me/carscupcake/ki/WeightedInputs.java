@@ -9,14 +9,15 @@ import java.util.Random;
 @Getter
 public class WeightedInputs{
     @Setter
-    private double weight = new Random().nextFloat();
+    private double weight;
     private final Node prev;
     @Setter
     private double velocity;
     @Setter
     private double costGradiant;
-    public WeightedInputs(Node next) {
+    public WeightedInputs(Node next, double weight) {
         this.prev = next;
+        this.weight = weight;
     }
     public ObjectNode toJson() {
         ObjectNode obj = KiApi.factory.objectNode();
@@ -25,8 +26,8 @@ public class WeightedInputs{
         return obj;
     }
     public static WeightedInputs from(ObjectNode obj, Node prev) {
-        WeightedInputs inputs = new WeightedInputs(prev);
-        inputs.weight = obj.get("weight").asDouble();
+         double weight = obj.get("weight").asDouble();
+        WeightedInputs inputs = new WeightedInputs(prev, weight);
         inputs.velocity = obj.get("velocity").asDouble();
         return inputs;
     }

@@ -18,6 +18,7 @@ public enum ActivationFunctions implements IActivationFunction{
         @Override
         public double activate(double[] inputs, int index) {
             double e2 = Math.exp(2 * inputs[index]);
+            if (e2 == -1) return 0;
             return (e2 - 1) / (e2 + 1);
         }
 
@@ -57,6 +58,10 @@ public enum ActivationFunctions implements IActivationFunction{
             double expSum = 0;
             for (double d : inputs)
                 expSum += Math.exp(d);
+            if (expSum == 0) return 0;
+            if (Double.isInfinite(expSum)) {
+                return inputs[index];
+            }
             return Math.exp(inputs[index]) / expSum;
         }
 
@@ -66,6 +71,7 @@ public enum ActivationFunctions implements IActivationFunction{
             for (double d : inputs)
                 expSum += Math.exp(d);
             double ex = Math.exp(inputs[index]);
+            if (expSum == 0) return 0;
             return (ex * expSum - Math.pow(ex, 2)) / Math.pow(expSum, 2);
         }
 

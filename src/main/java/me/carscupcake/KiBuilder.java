@@ -17,6 +17,11 @@ public class KiBuilder {
     private IActivationFunction activationFunction = ActivationFunctions.Sigmoid;
     private ICost cost;
     private double regularization, momentum = 0;
+    private IActivationFunction outputActivation = ActivationFunctions.Sigmoid;
+    public KiBuilder setOutputActivation(IActivationFunction activationFunction) {
+        this.outputActivation = activationFunction;
+        return this;
+    }
     public KiBuilder setRegularization(double d) {
         regularization = d;
         return this;

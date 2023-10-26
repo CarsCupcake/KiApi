@@ -8,18 +8,17 @@ import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.Getter;
 import me.carscupcake.ki.*;
 import me.carscupcake.learn.LayerLearnData;
 import me.carscupcake.learn.NetworkLearnData;
 import me.carscupcake.util.Assert;
 
 import java.io.*;
-import java.util.Arrays;
-import java.util.Vector;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.Random;
 
 @SuppressWarnings("unused")
+@Getter
 public class KiApi {
     public static JsonNodeFactory factory = new JsonNodeFactory(false);
     private final Layer inputs;
@@ -29,6 +28,7 @@ public class KiApi {
     private final ICost cost;
     private final double momentum;
     private final double regularization;
+    private final IActivationFunction outputActivation;
 
     KiApi(KiBuilder builder) {
         inputs = new Layer(builder.getInputs().toArray(new Input[0]));
@@ -39,10 +39,11 @@ public class KiApi {
         this.momentum = builder.getMomentum();
         this.regularization = builder.getRegularization();
         Assert.notNull(cost, "Cost is null!");
+        outputActivation = builder.getOutputActivation();
         generateConnections();
     }
 
-    public KiApi(File f, ICost cost, IActivationFunction function) throws IOException {
+    public KiApi(File f, ICost cost, IActivationFunction function, IActivationFunction outputActivation) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(f));
 
         ObjectNode obj = new ObjectMapper().readValue(f, ObjectNode.class);
@@ -77,6 +78,7 @@ public class KiApi {
         this.cost = cost;
         Assert.notNull(function, "Cost is null!");
         this.function = function;
+        this.outputActivation = outputActivation;
     }
 
     public NetworkLearnData makeLearnData() {
@@ -101,7 +103,7 @@ public class KiApi {
             i++;
             values = l.calcOutput(values, function);
         }
-        return outputs.calcOutput(values, function);
+        return outputs.calcOutput(values, outputActivation);
     }
 
     private double[] learn(double[] input, NetworkLearnData networkData) {
@@ -112,26 +114,35 @@ public class KiApi {
             i++;
             values = l.calcOutput(values, function, networkData.layerData()[i]);
         }
-        i++;
-        return outputs.calcOutput(values, function, networkData.layerData()[i]);
+        return outputs.calcOutput(values, outputActivation, networkData.output());
     }
 
+    /**
+     * Trains the ai
+     * @param data The training data
+     * @param learnRate a modifier for the learning rate
+     */
     public void train(TrainingData[] data, double learnRate) {
-        Vector<NetworkLearnData> learnData = new Vector<>();
         int i = 0;
+        int total = 0;
         for (TrainingData d : data) {
             NetworkLearnData networkData = makeLearnData();
             try {
                 double[] out = learn(d.input(), networkData);
+
                 d.evaluateCost(out, KiApi.this.cost, networkData, function);
                 networkData.update();
-                learnData.add(networkData);
+                if (i >= 500) {
+                    System.gc();
+                    i = 0;
+                }
             } catch (Exception e) {
                 e.printStackTrace(System.err);
             }
+            i++;
         }
         for (LayerLearnData d : makeLearnData().layerData())
-            d.layer().applyGradiants(learnRate / learnData.size(), regularization, momentum);
+            d.layer().applyGradiants(learnRate / data.length, regularization, momentum);
     }
 
     public void save(File file) {
@@ -161,15 +172,27 @@ public class KiApi {
         }
         makeNodes((hiddenLayers.length != 0) ? hiddenLayers[hiddenLayers.length - 1] : inputs, outputs);
     }
+
     private void makeNodes(Layer prev, Layer l) {
+        Random r = new Random();
         for (Node n : l.getNodes()) {
             int ii = 0;
             WeightedInputs[] in = new WeightedInputs[prev.getNodes().length];
             for (Node previous : prev.getNodes()) {
-                in[ii] = new WeightedInputs(n);
+                in[ii] = new WeightedInputs(n, randomInNormalDistrubution(r, 0, 1) / Math.sqrt(prev.getNodes().length));
                 ii++;
             }
             n.setConnections(in);
         }
+    }
+    private double randomInNormalDistrubution(Random random, double mean, double standartDerivation) {
+        double x1 = 1d - random.nextDouble();
+        double x2 = 1d - random.nextDouble();
+        double t = -2d * Math.log(x1) * Math.cos(2d * Math.PI * x2);
+        double y1;
+        if (t < 0) {
+            y1 = -Math.sqrt(t * -1);
+        } else y1 = Math.sqrt(t);
+        return y1 * standartDerivation + mean;
     }
 }

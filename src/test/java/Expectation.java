@@ -8,7 +8,7 @@ public enum Expectation {
     Three(new double[]{0,0,0,1,0,0,0,0,0,0}),
     Four(new double[]{0,0,0,0,1,0,0,0,0,0}),
     Five(new double[]{0,0,0,0,0,1,0,0,0,0}),
-    Six(new double[]{0,0,0,0,0,1,0,0,0,0}),
+    Six(new double[]{0,0,0,0,0,0,1,0,0,0}),
     Seven(new double[]{0,0,0,0,0,0,0,1,0,0}),
     Eight(new double[]{0,0,0,0,0,0,0,0,1,0}),
     Nine(new double[]{0,0,0,0,0,0,0,0,0,1});
